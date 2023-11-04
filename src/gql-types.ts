@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // types from gh gql
-type IDTitleEntry = { id: string; title: string };
+export type IDTitleEntry = { id: string; title: string };
 
 export type ProjectFieldEntry = {
   id: string;
@@ -40,3 +40,20 @@ export type ProjectQueryResponse = {
       }
     | undefined;
 };
+
+// --- for 'getNodeProjectItems' query ---
+//
+export type NodeProjectItemsEntry = {
+  id: string;
+  project: IDTitleEntry;
+  fieldValueByName: { name: string } | null;
+};
+
+export type NodeProjectItemsResponse = {
+  node: {
+    projectItems: {
+      nodes: NodeProjectItemsEntry[];
+    };
+  };
+};
+// --- 8< ---

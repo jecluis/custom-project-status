@@ -14,8 +14,8 @@
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { GitHub } from "@actions/github/lib/utils";
 import { ProjectFieldEntry, ProjectQueryResponse } from "./gql-types";
+import { Octokit, addProjectItem, getProjectItem } from "./helpers";
 
 type ProjectDesc = {
   owner: string;
@@ -48,7 +48,7 @@ function parseURL(url: string): ProjectDesc {
 }
 
 export class Project {
-  private octokit: InstanceType<typeof GitHub>;
+  private octokit: Octokit;
   private desc: ProjectDesc;
   private projectID?: string;
   private fields: { [id: string]: ProjectFieldEntry };
@@ -145,5 +145,29 @@ export class Project {
       }
       this.fields[entry.name] = entry;
     }
+  }
+
+  public async addToProject(
+    itemID: string,
+    isPullRequest: boolean,
+  ): Promise<void> {
+    core.debug(`addToProject item ID ${itemID}`);
+
+    if (this.projectID === undefined) {
+      throw new Error("Expected Project ID to be populated!");
+    }
+
+    const item = await getProjectItem(this.octokit, itemID, this.projectID);
+    if (item === undefined) {
+      core.info(`Adding item '${itemID}' to project '${this.projectID}'`);
+      addProjectItem(this.octokit, itemID, this.projectID);
+    } else {
+      core.info(`Item already associated with project '${this.projectID}`);
+    }
+
+    const newStatus = isPullRequest
+      ? this.defaultStatus.prs
+      : this.defaultStatus.issues;
+    core.info(`Set status to '${newStatus}`);
   }
 }
