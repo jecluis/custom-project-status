@@ -30094,6 +30094,24 @@ async function main() {
     core.debug(`using project ${projectDesc.title} id ${projectDesc.id}`);
     const payloadStr = JSON.stringify(github.context.payload, null, 2);
     core.debug(`payload: ${payloadStr}`);
+    const payload = github.context.payload;
+    let payloadNodeID = undefined;
+    let isPullRequest = false;
+    if (payload.issue !== undefined && payload.issue !== null) {
+        payloadNodeID = payload.issue.node_id;
+    }
+    else if (payload.pull_request !== undefined &&
+        payload.pull_request !== null) {
+        payloadNodeID = payload.pull_request.node_id;
+        isPullRequest = true;
+    }
+    else {
+        throw new Error(`Unable to obtain PR or Issue payload from ${payloadStr}`);
+    }
+    if (payloadNodeID === undefined) {
+        throw new Error("Unexpected undefined payload node ID!");
+    }
+    await project.addToProject(payloadNodeID, isPullRequest);
     core.setOutput("project-item-id", 123);
     return;
 }
