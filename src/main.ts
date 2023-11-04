@@ -27,8 +27,8 @@ export async function main(): Promise<void> {
   });
 
   // validate config
-  if (!ghToken.startsWith("ghp_")) {
-    core.error("GitHub token must be a classic PAT, not fine-grained.");
+  if (ghToken === "") {
+    core.error("GitHub token must be defined");
     throw new Error("Invalid GitHub token");
   }
 
