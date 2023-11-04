@@ -1,23 +1,34 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: "Custom Project Status"
+description: "Sets project and status for issues and pull requests"
+author: "Joao Eduardo Luis <joao@abysmo.io>"
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: 'heart'
-  color: 'red'
+  icon: "activity"
+  color: "purple"
 
 # Define your inputs here.
 inputs:
-  milliseconds:
-    description: 'Your input description here'
+  project-url:
+    description: "Project V2 URL"
     required: true
-    default: '1000'
+
+  gh-token:
+    description: "GitHub Personal Access Token with write access to 'project'"
+    required: true
+
+  default-issue-status:
+    description: "Default Status when issue is added to project"
+    required: true
+
+  default-pr-status:
+    description: "Default Status when pull request is added to project"
+    required: true
 
 # Define your outputs here.
 outputs:
-  time:
-    description: 'Your output description here'
+  project-item-id:
+    description: "The Project V2 Item ID that was added to the project"
 
 runs:
   using: node20

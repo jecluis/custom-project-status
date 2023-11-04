@@ -1,26 +1,77 @@
-import * as core from '@actions/core'
-import { wait } from './wait'
+// Copyright 2023 Joao Eduardo Luis <joao@abysmo.io>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-/**
- * The main function for the action.
- * @returns {Promise<void>} Resolves when the action is complete.
- */
-export async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
+import * as core from "@actions/core";
+import * as github from "@actions/github";
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+interface Config {
+  projectURL: string;
+  ghToken: string;
+  defaultIssueStatus: string;
+  defaultPRStatus: string;
+}
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+type ProjectDesc = {
+  owner: string;
+  projectNumber: number;
+  isOrg: boolean;
+};
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    // Fail the workflow run if an error occurs
-    if (error instanceof Error) core.setFailed(error.message)
+function parseURL(url: string): ProjectDesc {
+  const regex =
+    /\/(?<type>orgs|users)\/(?<owner>[^/]+)\/projects\/(?<prjNumber>\d+)/;
+  const match = url.match(regex);
+  if (match === null) {
+    core.error("Invalid project URL");
+    throw new Error(`Invalid project URL: ${url}`);
   }
+
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    owner: match.groups!.owner,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    projectNumber: parseInt(match.groups!.prjNumber),
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    isOrg: match.groups!.type === "orgs",
+  };
+}
+
+export async function main(): Promise<void> {
+  const config: Config = {
+    projectURL: core.getInput("project-url", { required: true }),
+    ghToken: core.getInput("gh-token", { required: true }),
+    defaultIssueStatus: core.getInput("default-issue-status", {
+      required: true,
+    }),
+    defaultPRStatus: core.getInput("default-pr-status", { required: true }),
+  };
+
+  // validate config
+  if (!config.ghToken.startsWith("ghp_")) {
+    core.error("GitHub token must be a classic PAT, not fine-grained.");
+    throw new Error("Invalid GitHub token");
+  }
+
+  // propagate exceptions
+  const desc: ProjectDesc = parseURL(config.projectURL);
+  core.debug(
+    `Working with project '${desc.projectNumber}' from '${desc.owner}'`,
+  );
+
+  const payloadStr = JSON.stringify(github.context.payload, null, 2);
+  core.debug(`payload: ${payloadStr}`);
+
+  core.setOutput("project-item-id", 123);
+  return;
 }
