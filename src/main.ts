@@ -14,60 +14,31 @@
 
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-
-interface Config {
-  projectURL: string;
-  ghToken: string;
-  defaultIssueStatus: string;
-  defaultPRStatus: string;
-}
-
-type ProjectDesc = {
-  owner: string;
-  projectNumber: number;
-  isOrg: boolean;
-};
-
-function parseURL(url: string): ProjectDesc {
-  const regex =
-    /\/(?<type>orgs|users)\/(?<owner>[^/]+)\/projects\/(?<prjNumber>\d+)/;
-  const match = url.match(regex);
-  if (match === null) {
-    core.error("Invalid project URL");
-    throw new Error(`Invalid project URL: ${url}`);
-  }
-
-  return {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    owner: match.groups!.owner,
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    projectNumber: parseInt(match.groups!.prjNumber),
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    isOrg: match.groups!.type === "orgs",
-  };
-}
+import { Project } from "./project";
 
 export async function main(): Promise<void> {
-  const config: Config = {
-    projectURL: core.getInput("project-url", { required: true }),
-    ghToken: core.getInput("gh-token", { required: true }),
-    defaultIssueStatus: core.getInput("default-issue-status", {
-      required: true,
-    }),
-    defaultPRStatus: core.getInput("default-pr-status", { required: true }),
-  };
+  const projectURL: string = core.getInput("project-url", { required: true });
+  const ghToken: string = core.getInput("gh-token", { required: true });
+  const defaultIssueStatus: string = core.getInput("default-issue-status", {
+    required: true,
+  });
+  const defaultPRStatus: string = core.getInput("default-pr-status", {
+    required: true,
+  });
 
   // validate config
-  if (!config.ghToken.startsWith("ghp_")) {
+  if (!ghToken.startsWith("ghp_")) {
     core.error("GitHub token must be a classic PAT, not fine-grained.");
     throw new Error("Invalid GitHub token");
   }
 
-  // propagate exceptions
-  const desc: ProjectDesc = parseURL(config.projectURL);
-  core.debug(
-    `Working with project '${desc.projectNumber}' from '${desc.owner}'`,
-  );
+  const project = new Project(ghToken, projectURL, {
+    issues: defaultIssueStatus,
+    prs: defaultPRStatus,
+  });
+
+  const projectDesc = await project.init();
+  core.debug(`using project ${projectDesc.title} id ${projectDesc.id}`);
 
   const payloadStr = JSON.stringify(github.context.payload, null, 2);
   core.debug(`payload: ${payloadStr}`);

@@ -103,3 +103,5 @@ __tests__/runner/*
 *.code-workspace
 
 *.token
+.graphqlrc.yml
+schema.docs.graphql

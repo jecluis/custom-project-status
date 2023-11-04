@@ -29938,6 +29938,82 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.main = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
+const project_1 = __nccwpck_require__(7191);
+async function main() {
+    const projectURL = core.getInput("project-url", { required: true });
+    const ghToken = core.getInput("gh-token", { required: true });
+    const defaultIssueStatus = core.getInput("default-issue-status", {
+        required: true,
+    });
+    const defaultPRStatus = core.getInput("default-pr-status", {
+        required: true,
+    });
+    // validate config
+    if (!ghToken.startsWith("ghp_")) {
+        core.error("GitHub token must be a classic PAT, not fine-grained.");
+        throw new Error("Invalid GitHub token");
+    }
+    const project = new project_1.Project(ghToken, projectURL, {
+        issues: defaultIssueStatus,
+        prs: defaultPRStatus,
+    });
+    const projectDesc = await project.init();
+    core.debug(`using project ${projectDesc.title} id ${projectDesc.id}`);
+    const payloadStr = JSON.stringify(github.context.payload, null, 2);
+    core.debug(`payload: ${payloadStr}`);
+    core.setOutput("project-item-id", 123);
+    return;
+}
+exports.main = main;
+
+
+/***/ }),
+
+/***/ 7191:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+// Copyright 2023 Joao Eduardo Luis <joao@abysmo.io>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Project = void 0;
+const core = __importStar(__nccwpck_require__(2186));
+const github = __importStar(__nccwpck_require__(5438));
 function parseURL(url) {
     const regex = /\/(?<type>orgs|users)\/(?<owner>[^/]+)\/projects\/(?<prjNumber>\d+)/;
     const match = url.match(regex);
@@ -29954,29 +30030,94 @@ function parseURL(url) {
         isOrg: match.groups.type === "orgs",
     };
 }
-async function main() {
-    const config = {
-        projectURL: core.getInput("project-url", { required: true }),
-        ghToken: core.getInput("gh-token", { required: true }),
-        defaultIssueStatus: core.getInput("default-issue-status", {
-            required: true,
-        }),
-        defaultPRStatus: core.getInput("default-pr-status", { required: true }),
-    };
-    // validate config
-    if (!config.ghToken.startsWith("ghp_")) {
-        core.error("GitHub token must be a classic PAT, not fine-grained.");
-        throw new Error("Invalid GitHub token");
+class Project {
+    octokit;
+    desc;
+    projectID;
+    fields;
+    defaultStatus;
+    constructor(token, url, defaultStatus) {
+        this.octokit = github.getOctokit(token);
+        this.desc = parseURL(url);
+        this.fields = {};
+        this.defaultStatus = defaultStatus;
     }
-    // propagate exceptions
-    const desc = parseURL(config.projectURL);
-    core.debug(`Working with project '${desc.projectNumber}' from '${desc.owner}'`);
-    const payloadStr = JSON.stringify(github.context.payload, null, 2);
-    core.debug(`payload: ${payloadStr}`);
-    core.setOutput("project-item-id", 123);
-    return;
+    /**
+     * Init project, from its organization/user and number, obtaining its ID, and
+     * its fields.
+     */
+    async init() {
+        core.debug(`project init: owner: ${this.desc.owner}, prj: ${this.desc.projectNumber}, is org: ${this.desc.isOrg}`);
+        const projectRes = await this.octokit.graphql(`#graphql
+
+      fragment projectV2fields on ProjectV2 {
+        id
+        title
+        fields(first: 20) {
+          nodes {
+            ... on ProjectV2SingleSelectField {
+              id
+              name
+              options {
+                id
+                name
+              }
+            }
+          }
+        }
+      }
+
+      query getProject($owner: String!, $projectNumber: Int!, $isOrg: Boolean!) {
+        organization(login: $owner) @include(if: $isOrg) {
+          projectV2(number: $projectNumber) {
+            ...projectV2fields
+          }
+        }
+        user(login: $owner) @skip(if: $isOrg) {
+          projectV2(number: $projectNumber) {
+            ...projectV2fields
+          }
+        }
+      }
+    `, {
+            owner: this.desc.owner,
+            projectNumber: this.desc.projectNumber,
+            isOrg: this.desc.isOrg,
+        });
+        if (this.desc.isOrg && projectRes.organization === undefined) {
+            throw new Error("Expected organization result, found none!");
+        }
+        else if (!this.desc.isOrg && projectRes.user === undefined) {
+            throw new Error("Expected user result, found none!");
+        }
+        const prjv2 = this.desc.isOrg
+            ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                projectRes.organization.projectV2
+            : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                projectRes.user.projectV2;
+        const res = {
+            id: prjv2.id,
+            title: prjv2.title,
+        };
+        this.projectID = res.id;
+        this.initFields(prjv2.fields.nodes);
+        return res;
+    }
+    /**
+     * Init project fields map from array obtained via gql.
+     * @param fields
+     * @returns
+     */
+    initFields(fields) {
+        for (const entry of fields) {
+            if (entry.id === undefined) {
+                return;
+            }
+            this.fields[entry.name] = entry;
+        }
+    }
 }
-exports.main = main;
+exports.Project = Project;
 
 
 /***/ }),
