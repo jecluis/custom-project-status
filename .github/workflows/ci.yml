@@ -1,17 +1,27 @@
 name: Continuous Integration
 
 on:
-  pull_request:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - labeled
+
   push:
     branches:
       - main
       - "releases/*"
+
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test-typescript:
+    if: |
+      github.event.label.name == 'ci/run' || github.event_name == 'push'  ||
+      github.event_name == 'workflow_dispatch'
     name: TypeScript Tests
     runs-on: ubuntu-latest
 
@@ -44,6 +54,9 @@ jobs:
         run: npm run ci-test
 
   test-action:
+    if: |
+      github.event.label.name == 'ci/run' || github.event_name == 'push'  ||
+      github.event_name == 'workflow_dispatch'
     name: GitHub Actions Test
     runs-on: ubuntu-latest
 
