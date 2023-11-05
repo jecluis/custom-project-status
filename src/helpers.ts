@@ -167,6 +167,15 @@ export async function addProjectItem(
 
 // for updateIssueStatus
 
+/**
+ * Updates a given item's status field, which is a single select field.
+ *
+ * @param octokit
+ * @param projectID the Project's ID
+ * @param projectItemID the item's project ID
+ * @param projectStatusFieldID status field ID
+ * @param projectStatusValueID status field's option value ID
+ */
 export async function updateIssueStatus(
   octokit: Octokit,
   projectID: string,

@@ -33,6 +33,12 @@ export type DefaultStatus = {
   prs: string;
 };
 
+/**
+ * Parses a project URL into a 'ProjectDesc' type.
+ *
+ * @param url
+ * @returns
+ */
 function parseURL(url: string): ProjectDesc {
   const regex =
     /\/(?<type>orgs|users)\/(?<owner>[^/]+)\/projects\/(?<prjNumber>\d+)/;
@@ -180,6 +186,15 @@ export class Project {
     };
   }
 
+  /**
+   * Adds a given item to the project. After adding to the project, this
+   * function will also update the item's status field to match what has been
+   * provided as inputs. If the item is already part of the project, simply
+   * update the status field.
+   *
+   * @param itemID The item to be added, its ID.
+   * @param isPullRequest Whether the item to be added is a pull request.
+   */
   public async addToProject(
     itemID: string,
     isPullRequest: boolean,
