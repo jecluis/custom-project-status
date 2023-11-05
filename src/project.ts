@@ -198,7 +198,7 @@ export class Project {
   public async addToProject(
     itemID: string,
     isPullRequest: boolean,
-  ): Promise<void> {
+  ): Promise<string> {
     core.debug(`addToProject item ID ${itemID}`);
 
     if (this.projectID === undefined) {
@@ -254,5 +254,7 @@ export class Project {
       newStatus.value.id,
     );
     core.info(`Item status set to '${newStatus.value.value}`);
+
+    return item.prjItemID;
   }
 }

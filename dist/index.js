@@ -30040,6 +30040,15 @@ async function addProjectItem(octokit, itemID, projectID) {
 }
 exports.addProjectItem = addProjectItem;
 // for updateIssueStatus
+/**
+ * Updates a given item's status field, which is a single select field.
+ *
+ * @param octokit
+ * @param projectID the Project's ID
+ * @param projectItemID the item's project ID
+ * @param projectStatusFieldID status field ID
+ * @param projectStatusValueID status field's option value ID
+ */
 async function updateIssueStatus(octokit, projectID, projectItemID, projectStatusFieldID, projectStatusValueID) {
     const res = await octokit.graphql(`#graphql
     mutation updateIssueStatus($projectID: ID!, $itemID: ID!, $fieldID: ID!, $fieldValue: String!) {
@@ -30159,8 +30168,8 @@ async function run_action() {
     if (payloadNodeID === undefined) {
         throw new Error("Unexpected undefined payload node ID!");
     }
-    await project.addToProject(payloadNodeID, isPullRequest);
-    core.setOutput("project-item-id", 123);
+    const prjItemID = await project.addToProject(payloadNodeID, isPullRequest);
+    core.setOutput("project-item-id", prjItemID);
     return;
 }
 async function main() {
@@ -30226,6 +30235,12 @@ exports.Project = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const helpers_1 = __nccwpck_require__(3015);
+/**
+ * Parses a project URL into a 'ProjectDesc' type.
+ *
+ * @param url
+ * @returns
+ */
 function parseURL(url) {
     const regex = /\/(?<type>orgs|users)\/(?<owner>[^/]+)\/projects\/(?<prjNumber>\d+)/;
     const match = url.match(regex);
@@ -30349,6 +30364,15 @@ class Project {
             },
         };
     }
+    /**
+     * Adds a given item to the project. After adding to the project, this
+     * function will also update the item's status field to match what has been
+     * provided as inputs. If the item is already part of the project, simply
+     * update the status field.
+     *
+     * @param itemID The item to be added, its ID.
+     * @param isPullRequest Whether the item to be added is a pull request.
+     */
     async addToProject(itemID, isPullRequest) {
         core.debug(`addToProject item ID ${itemID}`);
         if (this.projectID === undefined) {
@@ -30391,6 +30415,7 @@ class Project {
         }
         await (0, helpers_1.updateIssueStatus)(this.octokit, this.projectID, item.prjItemID, newStatus.fieldID, newStatus.value.id);
         core.info(`Item status set to '${newStatus.value.value}`);
+        return item.prjItemID;
     }
 }
 exports.Project = Project;

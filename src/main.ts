@@ -65,9 +65,9 @@ async function run_action(): Promise<void> {
     throw new Error("Unexpected undefined payload node ID!");
   }
 
-  await project.addToProject(payloadNodeID, isPullRequest);
+  const prjItemID = await project.addToProject(payloadNodeID, isPullRequest);
 
-  core.setOutput("project-item-id", 123);
+  core.setOutput("project-item-id", prjItemID);
   return;
 }
 
