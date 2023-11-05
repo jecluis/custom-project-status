@@ -14,7 +14,12 @@
 
 import * as core from "@actions/core";
 import { GitHub } from "@actions/github/lib/utils";
-import { NodeProjectItemsEntry, NodeProjectItemsResponse } from "./gql-types";
+import {
+  AddToProjectResponse,
+  NodeProjectItemsEntry,
+  NodeProjectItemsResponse,
+  UpdateIssueStatusResponse,
+} from "./gql-types";
 
 // So we can make typing of 'github.getOctokit()' work.
 export type Octokit = InstanceType<typeof GitHub>;
@@ -123,15 +128,81 @@ export async function getProjectItem(
   return prjItem;
 }
 
-// for addItemToProject
+// for addToProject
 
+/**
+ * Add a given item ID to the specified project ID.
+ *
+ * @param octokit
+ * @param itemID
+ * @param projectID
+ * @returns
+ */
 export async function addProjectItem(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   octokit: Octokit,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   itemID: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   projectID: string,
-): Promise<string | undefined> {
-  return undefined;
+): Promise<string> {
+  const res = await octokit.graphql<AddToProjectResponse>(
+    `#graphql
+    mutation addToProject($projectID: ID!, $itemID: ID!) {
+      addProjectV2ItemById(input: {
+        projectId: $projectID,
+        contentId: $itemID
+      }) {
+        item {
+          id
+        }
+      }
+    }
+    `,
+    {
+      projectID,
+      itemID,
+    },
+  );
+
+  return res.addProjectV2ItemById.item.id;
+}
+
+// for updateIssueStatus
+
+export async function updateIssueStatus(
+  octokit: Octokit,
+  projectID: string,
+  projectItemID: string,
+  projectStatusFieldID: string,
+  projectStatusValueID: string,
+): Promise<void> {
+  const res = await octokit.graphql<UpdateIssueStatusResponse>(
+    `#graphql
+    mutation updateIssueStatus($projectID: ID!, $itemID: ID!, $fieldID: ID!, $fieldValue: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectID,
+        itemId: $itemID,
+        fieldId: $fieldID,
+        value: {
+          singleSelectOptionId: $fieldValue
+        }
+      }) {
+        projectV2Item {
+          id
+        }
+      }
+    }
+    `,
+    {
+      projectID,
+      itemID: projectItemID,
+      fieldID: projectStatusFieldID,
+      fieldValue: projectStatusValueID,
+    },
+  );
+
+  const resID = res.updateProjectV2ItemFieldValue.projectV2Item.id;
+  if (resID !== projectItemID) {
+    throw new Error(
+      `Project Item ID mismatch! Expected '${projectItemID}', got ${resID}`,
+    );
+  }
 }

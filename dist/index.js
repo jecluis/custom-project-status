@@ -29935,7 +29935,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.addProjectItem = exports.getProjectItem = void 0;
+exports.updateIssueStatus = exports.addProjectItem = exports.getProjectItem = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 /**
  * Obtain project item, associated with a given project ID, from a provided item
@@ -30011,17 +30011,63 @@ async function getProjectItem(octokit, itemID, projectID) {
     return prjItem;
 }
 exports.getProjectItem = getProjectItem;
-// for addItemToProject
-async function addProjectItem(
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-octokit, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-itemID, 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-projectID) {
-    return undefined;
+// for addToProject
+/**
+ * Add a given item ID to the specified project ID.
+ *
+ * @param octokit
+ * @param itemID
+ * @param projectID
+ * @returns
+ */
+async function addProjectItem(octokit, itemID, projectID) {
+    const res = await octokit.graphql(`#graphql
+    mutation addToProject($projectID: ID!, $itemID: ID!) {
+      addProjectV2ItemById(input: {
+        projectId: $projectID,
+        contentId: $itemID
+      }) {
+        item {
+          id
+        }
+      }
+    }
+    `, {
+        projectID,
+        itemID,
+    });
+    return res.addProjectV2ItemById.item.id;
 }
 exports.addProjectItem = addProjectItem;
+// for updateIssueStatus
+async function updateIssueStatus(octokit, projectID, projectItemID, projectStatusFieldID, projectStatusValueID) {
+    const res = await octokit.graphql(`#graphql
+    mutation updateIssueStatus($projectID: ID!, $itemID: ID!, $fieldID: ID!, $fieldValue: String!) {
+      updateProjectV2ItemFieldValue(input: {
+        projectId: $projectID,
+        itemId: $itemID,
+        fieldId: $fieldID,
+        value: {
+          singleSelectOptionId: $fieldValue
+        }
+      }) {
+        projectV2Item {
+          id
+        }
+      }
+    }
+    `, {
+        projectID,
+        itemID: projectItemID,
+        fieldID: projectStatusFieldID,
+        fieldValue: projectStatusValueID,
+    });
+    const resID = res.updateProjectV2ItemFieldValue.projectV2Item.id;
+    if (resID !== projectItemID) {
+        throw new Error(`Project Item ID mismatch! Expected '${projectItemID}', got ${resID}`);
+    }
+}
+exports.updateIssueStatus = updateIssueStatus;
 
 
 /***/ }),
@@ -30106,7 +30152,9 @@ async function main() {
         isPullRequest = true;
     }
     else {
-        throw new Error(`Unable to obtain PR or Issue payload from ${payloadStr}`);
+        // not our payload, exit.
+        core.error(`Unable to obtain PR or Issue payload from ${payloadStr}`);
+        return;
     }
     if (payloadNodeID === undefined) {
         throw new Error("Unexpected undefined payload node ID!");
@@ -30273,18 +30321,35 @@ class Project {
         if (this.projectID === undefined) {
             throw new Error("Expected Project ID to be populated!");
         }
-        const item = await (0, helpers_1.getProjectItem)(this.octokit, itemID, this.projectID);
+        let item = await (0, helpers_1.getProjectItem)(this.octokit, itemID, this.projectID);
         if (item === undefined) {
             core.info(`Adding item '${itemID}' to project '${this.projectID}'`);
-            (0, helpers_1.addProjectItem)(this.octokit, itemID, this.projectID);
+            let prjItemID = undefined;
+            try {
+                prjItemID = await (0, helpers_1.addProjectItem)(this.octokit, itemID, this.projectID);
+            }
+            catch (err) {
+                core.error(`Unable to add item to project: ${err}`);
+                throw new Error("Unable to add item to project");
+            }
+            if (prjItemID === undefined) {
+                throw new Error("Undefined project item id returned when adding");
+            }
+            item = await (0, helpers_1.getProjectItem)(this.octokit, itemID, this.projectID);
+            if (item === undefined) {
+                throw new Error("Unexpected undefined project item after adding");
+            }
+            if (item.prjItemID !== prjItemID) {
+                throw new Error(`Project Item ID mismatch! Expected ${item.prjItemID} got ${prjItemID}`);
+            }
         }
         else {
-            core.info(`Item already associated with project '${this.projectID}`);
+            core.info(`Item already associated with project '${this.projectID}'`);
         }
         const newStatus = isPullRequest
             ? this.defaultStatus.prs
             : this.defaultStatus.issues;
-        core.info(`Set status to '${newStatus}`);
+        core.info(`Set status to '${newStatus}'`);
     }
 }
 exports.Project = Project;

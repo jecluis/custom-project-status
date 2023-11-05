@@ -56,7 +56,9 @@ export async function main(): Promise<void> {
     payloadNodeID = payload.pull_request.node_id;
     isPullRequest = true;
   } else {
-    throw new Error(`Unable to obtain PR or Issue payload from ${payloadStr}`);
+    // not our payload, exit.
+    core.error(`Unable to obtain PR or Issue payload from ${payloadStr}`);
+    return;
   }
 
   if (payloadNodeID === undefined) {

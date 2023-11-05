@@ -157,17 +157,38 @@ export class Project {
       throw new Error("Expected Project ID to be populated!");
     }
 
-    const item = await getProjectItem(this.octokit, itemID, this.projectID);
+    let item = await getProjectItem(this.octokit, itemID, this.projectID);
     if (item === undefined) {
       core.info(`Adding item '${itemID}' to project '${this.projectID}'`);
-      addProjectItem(this.octokit, itemID, this.projectID);
+      let prjItemID: string | undefined = undefined;
+      try {
+        prjItemID = await addProjectItem(this.octokit, itemID, this.projectID);
+      } catch (err) {
+        core.error(`Unable to add item to project: ${err}`);
+        throw new Error("Unable to add item to project");
+      }
+
+      if (prjItemID === undefined) {
+        throw new Error("Undefined project item id returned when adding");
+      }
+
+      item = await getProjectItem(this.octokit, itemID, this.projectID);
+      if (item === undefined) {
+        throw new Error("Unexpected undefined project item after adding");
+      }
+
+      if (item.prjItemID !== prjItemID) {
+        throw new Error(
+          `Project Item ID mismatch! Expected ${item.prjItemID} got ${prjItemID}`,
+        );
+      }
     } else {
-      core.info(`Item already associated with project '${this.projectID}`);
+      core.info(`Item already associated with project '${this.projectID}'`);
     }
 
     const newStatus = isPullRequest
       ? this.defaultStatus.prs
       : this.defaultStatus.issues;
-    core.info(`Set status to '${newStatus}`);
+    core.info(`Set status to '${newStatus}'`);
   }
 }

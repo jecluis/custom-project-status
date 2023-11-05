@@ -57,3 +57,23 @@ export type NodeProjectItemsResponse = {
   };
 };
 // --- 8< ---
+
+// --- for 'addToProject' mutation ---
+export type AddToProjectResponse = {
+  addProjectV2ItemById: {
+    item: {
+      id: string;
+    };
+  };
+};
+// --- 8< ---
+
+// --- for 'updateIssueStatus' mutation ---
+export type UpdateIssueStatusResponse = {
+  updateProjectV2ItemFieldValue: {
+    projectV2Item: {
+      id: string;
+    };
+  };
+};
+// --- 8< ---
