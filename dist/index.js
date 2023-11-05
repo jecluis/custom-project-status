@@ -30323,7 +30323,7 @@ class Project {
     initFields(fields) {
         for (const entry of fields) {
             if (entry.id === undefined) {
-                return;
+                continue;
             }
             this.fields[entry.name] = entry;
         }

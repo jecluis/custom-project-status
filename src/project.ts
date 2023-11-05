@@ -146,7 +146,7 @@ export class Project {
   private initFields(fields: ProjectFieldEntry[]): void {
     for (const entry of fields) {
       if (entry.id === undefined) {
-        return;
+        continue;
       }
       this.fields[entry.name] = entry;
     }
