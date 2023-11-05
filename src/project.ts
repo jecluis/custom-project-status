@@ -15,7 +15,12 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { ProjectFieldEntry, ProjectQueryResponse } from "./gql-types";
-import { Octokit, addProjectItem, getProjectItem } from "./helpers";
+import {
+  Octokit,
+  addProjectItem,
+  getProjectItem,
+  updateIssueStatus,
+} from "./helpers";
 
 type ProjectDesc = {
   owner: string;
@@ -147,6 +152,27 @@ export class Project {
     }
   }
 
+  private getStatusField(
+    wanted: string,
+  ): { fieldID: string; value: { id: string; value: string } } | undefined {
+    const statusField = this.fields["Status"];
+    const fieldValue = statusField.options.find(
+      (entry: { id: string; name: string }) => {
+        return entry.name.toLowerCase().includes(wanted.toLowerCase());
+      },
+    );
+    if (fieldValue === undefined) {
+      return undefined;
+    }
+    return {
+      fieldID: statusField.id,
+      value: {
+        id: fieldValue.id,
+        value: fieldValue.name,
+      },
+    };
+  }
+
   public async addToProject(
     itemID: string,
     isPullRequest: boolean,
@@ -186,9 +212,25 @@ export class Project {
       core.info(`Item already associated with project '${this.projectID}'`);
     }
 
-    const newStatus = isPullRequest
+    const wantedStatus = isPullRequest
       ? this.defaultStatus.prs
       : this.defaultStatus.issues;
-    core.info(`Set status to '${newStatus}'`);
+    core.info(`Set status to '${wantedStatus}'`);
+
+    const newStatus = this.getStatusField(wantedStatus);
+    if (newStatus === undefined) {
+      const errStr = `Unable to find status value for '${wantedStatus}'`;
+      core.error(errStr);
+      throw new Error(errStr);
+    }
+
+    await updateIssueStatus(
+      this.octokit,
+      this.projectID,
+      item.prjItemID,
+      newStatus.fieldID,
+      newStatus.value.id,
+    );
+    core.info(`Item status set to '${newStatus.value.value}`);
   }
 }

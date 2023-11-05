@@ -16,7 +16,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { Project } from "./project";
 
-export async function main(): Promise<void> {
+async function run_action(): Promise<void> {
   const projectURL: string = core.getInput("project-url", { required: true });
   const ghToken: string = core.getInput("gh-token", { required: true });
   const defaultIssueStatus: string = core.getInput("default-issue-status", {
@@ -69,4 +69,16 @@ export async function main(): Promise<void> {
 
   core.setOutput("project-item-id", 123);
   return;
+}
+
+export async function main(): Promise<void> {
+  try {
+    await run_action();
+  } catch (err) {
+    let message = "Unknown error";
+    if (err instanceof Error) {
+      message = err.message;
+    }
+    core.setFailed(message);
+  }
 }

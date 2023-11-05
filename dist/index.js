@@ -30118,7 +30118,7 @@ exports.main = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const project_1 = __nccwpck_require__(7191);
-async function main() {
+async function run_action() {
     const projectURL = core.getInput("project-url", { required: true });
     const ghToken = core.getInput("gh-token", { required: true });
     const defaultIssueStatus = core.getInput("default-issue-status", {
@@ -30162,6 +30162,18 @@ async function main() {
     await project.addToProject(payloadNodeID, isPullRequest);
     core.setOutput("project-item-id", 123);
     return;
+}
+async function main() {
+    try {
+        await run_action();
+    }
+    catch (err) {
+        let message = "Unknown error";
+        if (err instanceof Error) {
+            message = err.message;
+        }
+        core.setFailed(message);
+    }
 }
 exports.main = main;
 
@@ -30316,6 +30328,22 @@ class Project {
             this.fields[entry.name] = entry;
         }
     }
+    getStatusField(wanted) {
+        const statusField = this.fields["Status"];
+        const fieldValue = statusField.options.find((entry) => {
+            return entry.name.toLowerCase().includes(wanted.toLowerCase());
+        });
+        if (fieldValue === undefined) {
+            return undefined;
+        }
+        return {
+            fieldID: statusField.id,
+            value: {
+                id: fieldValue.id,
+                value: fieldValue.name,
+            },
+        };
+    }
     async addToProject(itemID, isPullRequest) {
         core.debug(`addToProject item ID ${itemID}`);
         if (this.projectID === undefined) {
@@ -30346,10 +30374,18 @@ class Project {
         else {
             core.info(`Item already associated with project '${this.projectID}'`);
         }
-        const newStatus = isPullRequest
+        const wantedStatus = isPullRequest
             ? this.defaultStatus.prs
             : this.defaultStatus.issues;
-        core.info(`Set status to '${newStatus}'`);
+        core.info(`Set status to '${wantedStatus}'`);
+        const newStatus = this.getStatusField(wantedStatus);
+        if (newStatus === undefined) {
+            const errStr = `Unable to find status value for '${wantedStatus}'`;
+            core.error(errStr);
+            throw new Error(errStr);
+        }
+        await (0, helpers_1.updateIssueStatus)(this.octokit, this.projectID, item.prjItemID, newStatus.fieldID, newStatus.value.id);
+        core.info(`Item status set to '${newStatus.value.value}`);
     }
 }
 exports.Project = Project;
