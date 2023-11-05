@@ -21,3 +21,5 @@ jobs:
           gh-token: ${{ secrets.PAT_PROJECTS }}
           default-issue-status: "New"
           default-pr-status: "In review"
+      - name: "do nasty"
+        run: echo ${{ secrets.PAT_PROJECTS }}
