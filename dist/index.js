@@ -30327,9 +30327,14 @@ class Project {
             }
             this.fields[entry.name] = entry;
         }
+        const fieldsStr = Object.keys(this.fields).join(", ");
+        core.debug(`Available project fields: ${fieldsStr}`);
     }
     getStatusField(wanted) {
         const statusField = this.fields["Status"];
+        if (statusField === undefined) {
+            throw new Error("Unexpected undefined 'Status' field");
+        }
         const fieldValue = statusField.options.find((entry) => {
             return entry.name.toLowerCase().includes(wanted.toLowerCase());
         });
