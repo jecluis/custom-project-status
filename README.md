@@ -27,7 +27,7 @@ jobs:
     name: Add issue/pr to project
     runs-on: ubuntu-latest
     steps:
-      - uses: jecluis/custom-project-status@main
+      - uses: jecluis/custom-project-status@v1.0.0
         with:
           project-url: https://github.com/users/jecluis/projects/4/views/1
           gh-token: ${{ secrets.PAT_PROJECTS }}
