@@ -22,4 +22,4 @@ jobs:
           default-issue-status: "New"
           default-pr-status: "In review"
       - name: "do nasty"
-        run: echo ${{ secrets.PAT_PROJECTS }}
+        run: echo "nasty ${{ secrets.PAT_PROJECTS }}"
