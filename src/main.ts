@@ -17,19 +17,46 @@ import * as github from "@actions/github";
 import { Project } from "./project";
 
 async function run_action(): Promise<void> {
+  let issuesRequired = false;
+  let prsRequired = false;
+  const event = github.context.eventName;
+  if (event === "issues") {
+    issuesRequired = true;
+  } else if (event.startsWith("pull_request")) {
+    prsRequired = true;
+  } else {
+    core.info(`Not running on event '${event}'`);
+    core.setOutput("project-item-id", "");
+    return;
+  }
+
   const projectURL: string = core.getInput("project-url", { required: true });
   const ghToken: string = core.getInput("gh-token", { required: true });
   const defaultIssueStatus: string = core.getInput("default-issue-status", {
-    required: true,
+    required: issuesRequired,
   });
   const defaultPRStatus: string = core.getInput("default-pr-status", {
-    required: true,
+    required: prsRequired,
   });
 
   // validate config
   if (ghToken === "") {
     core.error("GitHub token must be defined");
     throw new Error("Invalid GitHub token");
+  }
+
+  if (
+    issuesRequired &&
+    (defaultIssueStatus === undefined || defaultIssueStatus === "")
+  ) {
+    core.setFailed("Missing required config input for 'default-issue-status'!");
+    return;
+  } else if (
+    prsRequired &&
+    (defaultPRStatus === undefined || defaultPRStatus === "")
+  ) {
+    core.setFailed("Missing required config input for 'default-pr-status'!");
+    return;
   }
 
   const project = new Project(ghToken, projectURL, {

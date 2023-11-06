@@ -30128,18 +30128,42 @@ const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
 const project_1 = __nccwpck_require__(7191);
 async function run_action() {
+    let issuesRequired = false;
+    let prsRequired = false;
+    const event = github.context.eventName;
+    if (event === "issues") {
+        issuesRequired = true;
+    }
+    else if (event.startsWith("pull_request")) {
+        prsRequired = true;
+    }
+    else {
+        core.info(`Not running on event '${event}'`);
+        core.setOutput("project-item-id", "");
+        return;
+    }
     const projectURL = core.getInput("project-url", { required: true });
     const ghToken = core.getInput("gh-token", { required: true });
     const defaultIssueStatus = core.getInput("default-issue-status", {
-        required: true,
+        required: issuesRequired,
     });
     const defaultPRStatus = core.getInput("default-pr-status", {
-        required: true,
+        required: prsRequired,
     });
     // validate config
     if (ghToken === "") {
         core.error("GitHub token must be defined");
         throw new Error("Invalid GitHub token");
+    }
+    if (issuesRequired &&
+        (defaultIssueStatus === undefined || defaultIssueStatus === "")) {
+        core.setFailed("Missing required config input for 'default-issue-status'!");
+        return;
+    }
+    else if (prsRequired &&
+        (defaultPRStatus === undefined || defaultPRStatus === "")) {
+        core.setFailed("Missing required config input for 'default-pr-status'!");
+        return;
     }
     const project = new project_1.Project(ghToken, projectURL, {
         issues: defaultIssueStatus,
@@ -30397,7 +30421,7 @@ class Project {
                 throw new Error("Unexpected undefined project item after adding");
             }
             if (item.prjItemID !== prjItemID) {
-                throw new Error(`Project Item ID mismatch! Expected ${item.prjItemID} got ${prjItemID}`);
+                throw new Error(`Project Item ID mismatch! Expected ${prjItemID} got ${item.prjItemID}`);
             }
         }
         else {
@@ -30406,6 +30430,12 @@ class Project {
         const wantedStatus = isPullRequest
             ? this.defaultStatus.prs
             : this.defaultStatus.issues;
+        if (wantedStatus === undefined) {
+            const itemType = isPullRequest ? "Pull Request" : "Issue";
+            const errStr = `Default Status not configured for type '${itemType}'!`;
+            core.error(errStr);
+            throw new Error(errStr);
+        }
         core.info(`Set status to '${wantedStatus}'`);
         const newStatus = this.getStatusField(wantedStatus);
         if (newStatus === undefined) {
