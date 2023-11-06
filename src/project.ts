@@ -227,7 +227,7 @@ export class Project {
 
       if (item.prjItemID !== prjItemID) {
         throw new Error(
-          `Project Item ID mismatch! Expected ${item.prjItemID} got ${prjItemID}`,
+          `Project Item ID mismatch! Expected ${prjItemID} got ${item.prjItemID}`,
         );
       }
     } else {
@@ -237,6 +237,14 @@ export class Project {
     const wantedStatus = isPullRequest
       ? this.defaultStatus.prs
       : this.defaultStatus.issues;
+
+    if (wantedStatus === undefined) {
+      const itemType = isPullRequest ? "Pull Request" : "Issue";
+      const errStr = `Default Status not configured for type '${itemType}'!`;
+      core.error(errStr);
+      throw new Error(errStr);
+    }
+
     core.info(`Set status to '${wantedStatus}'`);
 
     const newStatus = this.getStatusField(wantedStatus);

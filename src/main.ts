@@ -17,13 +17,16 @@ import * as github from "@actions/github";
 import { Project } from "./project";
 
 async function run_action(): Promise<void> {
+  const dbgCtx = JSON.stringify(github.context, undefined, 2);
+  core.debug(`ctx: ${dbgCtx}`);
+
   const projectURL: string = core.getInput("project-url", { required: true });
   const ghToken: string = core.getInput("gh-token", { required: true });
   const defaultIssueStatus: string = core.getInput("default-issue-status", {
-    required: true,
+    required: false,
   });
   const defaultPRStatus: string = core.getInput("default-pr-status", {
-    required: true,
+    required: false,
   });
 
   // validate config

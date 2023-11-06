@@ -19,11 +19,11 @@ inputs:
 
   default-issue-status:
     description: "Default Status when issue is added to project"
-    required: true
+    required: false
 
   default-pr-status:
     description: "Default Status when pull request is added to project"
-    required: true
+    required: false
 
 # Define your outputs here.
 outputs:
