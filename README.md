@@ -27,7 +27,7 @@ jobs:
     name: Add issue/pr to project
     runs-on: ubuntu-latest
     steps:
-      - uses: jecluis/custom-project-status@v1.0.0
+      - uses: jecluis/custom-project-status@v1.1.0
         with:
           project-url: https://github.com/users/jecluis/projects/4/views/1
           gh-token: ${{ secrets.PAT_PROJECTS }}
@@ -43,6 +43,11 @@ jobs:
   can be a substring of the actual status value.
 - **default-pr-status:** The name of the status to add a _pull request_ to. This
   can be a substring of the actual status value.
+
+Both `default-issue-status` and `default-pr-status` can be optional IFF the
+action is not triggered on either `issues` or `pull_request`, respectively.
+I.e., if the action is triggered just on `pull_request`, we need to specify
+`default-pr-status`, but we don't need to specify `default-issue-status`.
 
 ### Output
 
